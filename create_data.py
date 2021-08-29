@@ -2,7 +2,7 @@ import os
 import numpy as np
 import cv2
 
-path = "./data/categorized/digits/"
+path = "./dataCNN/categorized/digits/"
 data = []
 
 

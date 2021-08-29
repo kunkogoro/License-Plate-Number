@@ -53,10 +53,12 @@ digit_list = digit_list.reshape(-1, digit_h * digit_w)
 label_list = np.array(label_list)
 label_list = label_list.reshape(-1, 1)
 
+# tạo model
 svm_model = cv2.ml.SVM_create()
 svm_model.setType(cv2.ml.SVM_C_SVC)
 svm_model.setKernel(cv2.ml.SVM_INTER)
 svm_model.setTermCriteria((cv2.TERM_CRITERIA_MAX_ITER, 100, 1e-6))
+# train
 svm_model.train(digit_list, cv2.ml.ROW_SAMPLE, label_list)
 
 svm_model.save("svm.xml")

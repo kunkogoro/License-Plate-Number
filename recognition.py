@@ -50,7 +50,9 @@ class E2E(object):
         for coordinate in coordinates:
             yield coordinate
 
-    
+    def loadModelCNN(self):
+        self.recogChar = CNN_Model(trainable=False).model
+        self.recogChar.load_weights('./weights/weight.h5')
     
 
 
@@ -162,7 +164,7 @@ class E2E(object):
        
         if(self.model == "SVM"):
             count = 0
-            for c in sort_contours(cont):
+            for c in self.sort_contours(cont):
                 (x, y, w, h) = cv2.boundingRect(c)
                 cv2.rectangle(thresh, (x, y), (x + w, y + h), (255, 0, 0), 2)
                 aspectRatio = h / float(w)
@@ -351,7 +353,7 @@ class E2E(object):
         print("SVM biền số:" + self.license_plate)
         return self.license_plate
 
-def sort_contours(cnts):
+    def sort_contours(cnts):
 
         reverse = False
         i = 0
@@ -360,9 +362,10 @@ def sort_contours(cnts):
                                             key=lambda b: b[1][i], reverse=reverse))
         return cnts
 
-def fine_tune(self,lp):
+    def fine_tune(self,lp):
         newString = ""
         for i in range(len(lp)):
             if lp[i] in self.char_list:
                 newString += lp[i]
         return newString
+

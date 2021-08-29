@@ -31,6 +31,8 @@ class Main(Tk):
         self.geometry("700x600+%d+%d"%(srcW/2-350,srcH/2-350))
         self.resizable(width=False,height=False)
         self.filenameOld = ""
+        self.model = E2E()
+        self.model.loadModelCNN()
 
 
         self.frame_result = LabelFrame(self,text="Kết quả",padx=10,pady=10,width=200,height=500)
@@ -122,13 +124,12 @@ class Main(Tk):
 
             self.start = time.time()
 
-            model = E2E()
             image_r = cv2.imread(str(self.filenameOld))
             if(self.label_time.get() == "CNN"):
-                self.image = model.predict(image_r,"CNN")
+                self.image = self.model.predict(image_r,"CNN")
                 self.end = time.time()
             else: 
-                self.image = model.predict(image_r,"SVM")
+                self.image = self.model.predict(image_r,"SVM")
                 self.end = time.time()
 
             # gắn hình kết quả
@@ -157,11 +158,10 @@ class Main(Tk):
             self.label_plate_contour.config(image=self.imageLpRegion_ex_contour,width=170)
 
            
-            self.license_plate = model.get_license_plate()
+            self.license_plate = self.model.get_license_plate()
             print(self.license_plate)
             self.edit_character.config(text= self.license_plate)
 
-            self.license_plate = model.get_license_plate()
             self.time = '%.2f s' % (self.end - self.start)
             print('Thực hiện %.2f s' % (self.end - self.start))
             self.edit_time.config(text= self.time)
