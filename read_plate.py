@@ -90,7 +90,7 @@ if (len(LpImg)):
             if h/roi.shape[0]>=0.6: # Chon cac contour cao tu 60% bien so tro len
 
                 # Ve khung chu nhat quanh so
-                cv2.rectangle(roi, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                cv2.rectangle(roi, (x, y), (x + w, y + h), (0, 255, 0), 1)
 
                 # Tach so va predict
                 curr_num = thre_mor[y:y+h,x:x+w]

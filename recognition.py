@@ -19,8 +19,10 @@ class E2E(object):
     def __init__(self):
         self.image = np.empty((28, 28, 1))
         self.detectLP = detectNumberPlate()
+
         self.recogChar = CNN_Model(trainable=False).model
         self.recogChar.load_weights('./weights/weight.h5')
+        
         self.candidates = []
          # Cau hinh tham so cho model SVM
         self.digit_w = 30 # Kich thuoc ki tu
@@ -95,8 +97,6 @@ class E2E(object):
 
             if(model == "CNN"):
             # recognize characters
-               
-
                 self.recognizeChar()
 
             # format and display license plate
@@ -104,6 +104,8 @@ class E2E(object):
 
             # draw labels
             self.image = draw_labels_and_boxes(self.image, self.license_plate, coordinate)
+
+            cv2.imwrite("result.png",self.image)
 
         #cv2.imwrite('example.png', self.image)
         return self.image
@@ -162,7 +164,7 @@ class E2E(object):
             count = 0
             for c in sort_contours(cont):
                 (x, y, w, h) = cv2.boundingRect(c)
-                cv2.rectangle(thresh, (x, y), (x + w, y + h), (255, 0, 0), 1)
+                cv2.rectangle(thresh, (x, y), (x + w, y + h), (255, 0, 0), 2)
                 aspectRatio = h / float(w)
                 solidity = cv2.contourArea(c) / float(w * h)
                 heightRatio = h / float(LpRegion.shape[0])
@@ -170,7 +172,7 @@ class E2E(object):
                 if 1.5 < aspectRatio < 3.5 and solidity > 0.1 and 0.35 < heightRatio < 3.0: # Chon cac contour dam bao ve ratio w/h
                 #   if h/thresh.shape[0]>=0.5:
                     count = count + 1
-                        # cv2.rectangle(thresh, (x, y), (x + w, y + h), (255, 0, 0), 1)
+                    cv2.rectangle(thresh, (x, y), (x + w, y + h), (255, 0, 0), 1)
                         # print(count)
                     #     # Tach so va predict
                     curr_num = thre_mor[y:y+h,x:x+w]
@@ -242,10 +244,11 @@ class E2E(object):
                     heightRatio = h / float(LpRegion.shape[0])
 
                     if 0.1 < aspectRatio < 1.0 and solidity > 0.1 and 0.35 < heightRatio < 2.0:
-                        if(model == "CNN"):
+                        
                             # extract characters
+                            cv2.rectangle(thresh, (x, y), (x + w, y + h), (255, 0, 0), 2)
                             candidate = np.array(mask[y:y + h, x:x + w])
-                            # cv2.rectangle(thresh, (x, y), (x + w, y + h), (255, 0, 0), 1)
+                            
                             # chuyển các hình không phải hình vuông thành hình vuông
                             square_candidate = convert2Square(candidate)
 
@@ -296,7 +299,7 @@ class E2E(object):
                         #     else: #Neu la chu thi chuyen bang ASCII
                         #      result = chr(result)
                         #      self.plate_info +=result
-            cv2.imwrite("step4.png", thresh)
+            cv2.imwrite("step3.png", thresh)
     
     def recognizeChar(self):
         # kí tự
@@ -344,7 +347,7 @@ class E2E(object):
 
         return license_plate
 
-    def get_license_plate(self,model):
+    def get_license_plate(self):
         print("SVM biền số:" + self.license_plate)
         return self.license_plate
 
