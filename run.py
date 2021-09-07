@@ -15,7 +15,7 @@ import cv2
 from pathlib import Path
 import argparse
 import time
-
+from model import CNN_Model
 from numpy.lib.arraypad import pad
 
 
@@ -31,9 +31,8 @@ class Main(Tk):
         self.geometry("700x600+%d+%d"%(srcW/2-350,srcH/2-350))
         self.resizable(width=False,height=False)
         self.filenameOld = ""
-        self.model = E2E()
-        self.model.loadModelCNN()
 
+        self.model = E2E()
 
         self.frame_result = LabelFrame(self,text="Kết quả",padx=10,pady=10,width=200,height=500)
         # frame_result.pack(side=LEFT,fill="both",expand="yes")
@@ -78,10 +77,10 @@ class Main(Tk):
         self.btn = Button(self.frame_result,text="Lấy hình",padx=50,pady=7,font="arial 10 bold",command=self.open)
         self.btn.grid(row=7,column=0,pady=7)
 
-        self.btn_processing = Button(self.frame_result,text="Thực hiện",padx=50,pady=7,font="arial 10 bold",command=self.processing)
+        self.btn_processing = Button(self.frame_result,text="Nhận dạng",padx=50,pady=7,font="arial 10 bold",command=self.processing)
         self.btn_processing.grid(row=8,column=0,pady=7)
 
-        self.btn_reset = Button(self.frame_result,text="Làm mới",padx=50,pady=7,font="arial 10 bold",command=self.reset)
+        self.btn_reset = Button(self.frame_result,text="Làm mới",padx=50,pady=7,font="arial 10 bold",command=self.resetAll)
         self.btn_reset.grid(row=9,column=0,pady=7)
 
         self.btn_exit = Button(self.frame_result,text="Thoát",padx=50,pady=7,font="arial 10 bold",command=self.close)
@@ -126,6 +125,7 @@ class Main(Tk):
 
             image_r = cv2.imread(str(self.filenameOld))
             if(self.label_time.get() == "CNN"):
+                
                 self.image = self.model.predict(image_r,"CNN")
                 self.end = time.time()
             else: 
@@ -157,24 +157,16 @@ class Main(Tk):
             self.imageLpRegion_ex_contour = ImageTk.PhotoImage(self.imageLpRegion_2_color)
             self.label_plate_contour.config(image=self.imageLpRegion_ex_contour,width=170)
 
-           
+           # gắn chữ đã nhận dạng và thời gian
             self.license_plate = self.model.get_license_plate()
             print(self.license_plate)
             self.edit_character.config(text= self.license_plate)
 
             self.time = '%.2f s' % (self.end - self.start)
-            print('Thực hiện %.2f s' % (self.end - self.start))
+            # print('Thực hiện %.2f s' % (self.end - self.start))
             self.edit_time.config(text= self.time)
 
-
-           
-
-            # gắn chữ số đã nhận dạng
-
-            
-        
-
-        
+    
     def open(self):
         # global resize_image, filename
         self.filename = filedialog.askopenfilename(initialdir="/Desktop",title="tải ảnh cần nhận diện",filetypes=(("jpg files","*.jpg"),("png files","*.png")))
@@ -185,6 +177,7 @@ class Main(Tk):
         if(self.filename != ""):
             self.filenameOld = self.filename
             self.reset()
+            print(self.filename)
 
 
     def insert(self,image):

@@ -44,7 +44,7 @@ for fi in os.listdir(path):
 np.save("./data/digits.npy", data)
 
 
-path = "./data/categorized/alphas/"
+path = "./dataCNN/categorized/alphas/"
 data = []
 
 

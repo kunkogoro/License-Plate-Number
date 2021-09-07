@@ -1,6 +1,8 @@
-import keras
+# import keras
 import numpy as np
 import data_utils
+from tensorflow import keras
+# from keras.utils import to_categorical
 
 
 class Datasets(object):

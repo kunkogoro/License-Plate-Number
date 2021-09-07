@@ -55,6 +55,7 @@ label_list = label_list.reshape(-1, 1)
 
 # tạo model
 svm_model = cv2.ml.SVM_create()
+#Phân loại véc tơ hỗ trợ C. phân loại n-class (n≥ 2), cho phép phân tách không hoàn hảo các lớp với hệ số phạt C cho các ngoại lệ.
 svm_model.setType(cv2.ml.SVM_C_SVC)
 svm_model.setKernel(cv2.ml.SVM_INTER)
 svm_model.setTermCriteria((cv2.TERM_CRITERIA_MAX_ITER, 100, 1e-6))

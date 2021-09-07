@@ -7,6 +7,10 @@ from keras import optimizers
 from keras.layers import Dense, Conv2D, MaxPooling2D, Dropout, Flatten
 from keras.callbacks import ReduceLROnPlateau, ModelCheckpoint
 from keras.models import Sequential
+import tensorflow as tf
+
+from tensorflow.keras import datasets, layers, models
+import matplotlib.pyplot as plt
 
 
 ALPHA_DICT = {0: 'A', 1: 'B', 2: 'C', 3: 'D', 4: 'E', 5: 'F', 6: 'G', 7: 'H', 8: 'K', 9: 'L', 10: 'M', 11: 'N', 12: 'P',
@@ -19,6 +23,7 @@ class CNN_Model(object):
         self.batch_size = config.BATCH_SIZE
         self.trainable = trainable
         self.num_epochs = config.EPOCHS
+       
 
         # Building model
         # xây dựng model
@@ -30,7 +35,20 @@ class CNN_Model(object):
             self.data = Datasets()
 
         #Ở hàm này  sử dụng để training models như thuật toán train qua optimizer như Adam, SGD, RMSprop,..
-        self.model.compile(loss="categorical_crossentropy", optimizer=optimizers.Adam(1e-3), metrics=['acc'])
+        self.model.compile(loss="categorical_crossentropy", optimizer=optimizers.Adam(1e-3), metrics=['accuracy'])
+        # self.train()
+        # self.evaluate_model()
+
+
+    def evaluate_model(self):
+        plt.plot(self.history.history['accuracy'], label='accuracy')
+        plt.plot(self.history.history['val_accuracy'], label = 'val_accuracy')
+        plt.xlabel('Epoch')
+        plt.ylabel('Accuracy')
+        plt.ylim([0.5, 1])
+        plt.legend(loc='lower right')
+
+        # test_loss, test_acc = model.evaluate(test_images,  test_labels, verbose=2)
 
     def _build_model(self):
         # CNN model
@@ -63,6 +81,7 @@ class CNN_Model(object):
         self.model.add(MaxPooling2D(pool_size=(2, 2)))
         self.model.add(Dropout(0.25))
 
+        ## Flatten layer chuyển từ tensor sang vector
         self.model.add(Flatten())
        # Dense ( ): Layer này cũng như một layer neural network bình thường
         self.model.add(Dense(512, activation='relu'))
@@ -73,10 +92,10 @@ class CNN_Model(object):
     def train(self):
         # reduce learning rate
         #giảm learning mỗi khi metrics không cải thiện
-        reduce_lr = ReduceLROnPlateau(monitor='val_acc', factor=0.2, patience=5, verbose=1, )
+        reduce_lr = ReduceLROnPlateau(monitor='val_accuracy', factor=0.2, patience=5, verbose=1, )
         # Model Checkpoint
         #lưu lại model sau mỗi epoch
-        cpt_save = ModelCheckpoint('./weight.h5', save_best_only=True, monitor='val_acc', mode='max')
+        cpt_save = ModelCheckpoint('./weights/weight2.h5', save_best_only=True, monitor='val_accuracy', mode='max')
 
         print("Training......")
         trainX, trainY = self.data.gen()
@@ -90,5 +109,11 @@ class CNN_Model(object):
         # verbose: Chế độ chi tiết
         #validation_split: chia dữ liệu ra 2 phần: train và test 0.15 là tran 85% test 15%
         #batch_size: thể hiện số lượng mẫu sử dụng cho mỗi lần cập nhật trọng số .
-        self.model.fit(trainX, trainY, validation_split=0.15, callbacks=[cpt_save, reduce_lr], verbose=1,
+        self.history =  self.model.fit(trainX, trainY, validation_split=0.15, callbacks=[cpt_save, reduce_lr], verbose=1,
                        epochs=self.num_epochs, shuffle=True, batch_size=self.batch_size)
+
+if __name__ == '__main__':
+    main = CNN_Model(trainable=True)
+    
+
+

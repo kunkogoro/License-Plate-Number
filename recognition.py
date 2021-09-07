@@ -8,6 +8,9 @@ from detect import detectNumberPlate
 from model import CNN_Model
 from skimage.filters import threshold_local
 from lib_detection import load_model, detect_lp, im2single
+import time
+from joblib import load
+import pickle
 
 
 ALPHA_DICT = {0: 'A', 1: 'B', 2: 'C', 3: 'D', 4: 'E', 5: 'F', 6: 'G', 7: 'H', 8: 'K', 9: 'L', 10: 'M', 11: 'N', 12: 'P',
@@ -21,24 +24,22 @@ class E2E(object):
         self.detectLP = detectNumberPlate()
 
         self.recogChar = CNN_Model(trainable=False).model
+
         self.recogChar.load_weights('./weights/weight.h5')
-        
+      
         self.candidates = []
          # Cau hinh tham so cho model SVM
         self.digit_w = 30 # Kich thuoc ki tu
         self.digit_h = 60 # Kich thuoc ki tu
         self.plate_info = ""
-        self.model_svm = cv2.ml.SVM_load('svm.xml')
+        # self.model_svm = cv2.ml.SVM_load('./weights/svmModel1.xml')
+        self.model_svm = load('./weights/modelSVM.joblib')
+  
         self.char_list =  '0123456789ABCDEFGHKLMNPRSTUVXYZ'
-        self.wpod_net_path = "wpod-net_update1.json"
-        self.wpod_net = load_model(self.wpod_net_path)
-        self.Dmax = 608
-        self.Dmin = 288
         self.model = "CNN"
-        self.toado = []
+       
         
 
-        
 
     def extractLP(self):
         # mảng chứa tọa độ và các kích thước của đối tượng
@@ -50,10 +51,6 @@ class E2E(object):
         for coordinate in coordinates:
             yield coordinate
 
-    def loadModelCNN(self):
-        self.recogChar = CNN_Model(trainable=False).model
-        self.recogChar.load_weights('./weights/weight.h5')
-    
 
 
     def predict(self, image,model):
@@ -91,15 +88,21 @@ class E2E(object):
 
             # cắt ảnh theo 4 tọa độ truyền vào (top left, top right, bottom left, bottom right)
             LpRegion = perspective.four_point_transform(self.image, pts)
+
+
             cv2.imwrite('step1.png', LpRegion)
             # insert(LpRegion)
           
+           
             # segmentation
-            self.segmentation(LpRegion,model)
+            self.segmentation(LpRegion)
+            
 
             if(model == "CNN"):
             # recognize characters
+                
                 self.recognizeChar()
+                
 
             # format and display license plate
             self.license_plate = self.format()
@@ -113,7 +116,7 @@ class E2E(object):
         return self.image
     
    #Segment tách từng kí tự trên biến số xe
-    def segmentation(self, LpRegion,model):
+    def segmentation(self, LpRegion):
         # apply thresh to extracted licences plate
         #lấy ra độ sáng của ảnh
        
@@ -128,86 +131,53 @@ class E2E(object):
         binary = cv2.threshold(gray, 127, 255,
                          cv2.THRESH_BINARY_INV)[1]
 
-
-    # Ap dung threshold de phan tach so va nen
-        # binary = cv2.threshold(gray, 127, 255,
-        #                  cv2.THRESH_BINARY_INV)[1]
-
         cv2.imwrite("step2_1.png", binary)
-        # convert black pixel of digits to white pixel
-        # thresh = cv2.bitwise_not(binary)
+
         thresh = binary
         cv2.imwrite("step2_2.png", thresh)
         thresh = imutils.resize(thresh, width=400)
-
-        # ratio = float(max(self.image.shape[:2])) / min(self.image.shape[:2])
-        # side = int(ratio * self.Dmin)
-        # bound_dim = min(side, self.Dmax)
-        # I = im2single(self.image)
-        # min_dim_img = min(I.shape[:2])
-        # factor = float(bound_dim) / min_dim_img
-        # w, h = (np.array(I.shape[1::-1], dtype=float) * factor).astype(int).tolist()
-        # thresh1 = thresh.copy()
-        # # print(w)
-        # # print(h)
-        # thresh1 = cv2.resize(thresh1, (470,110))
-        # cv2.imwrite("step21.png",thresh1)
-
         #SVM
         kernel3 = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 1))
         thre_mor = cv2.morphologyEx(thresh, cv2.MORPH_DILATE, kernel3)
+
         cont, _  = cv2.findContours(thre_mor, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-        
 
         #chống nhiễu hạt tiêu trong ảnh
         thresh = cv2.medianBlur(thresh, 5)
        
         if(self.model == "SVM"):
             count = 0
-            for c in self.sort_contours(cont):
+                
+            for c in cont:
                 (x, y, w, h) = cv2.boundingRect(c)
                 cv2.rectangle(thresh, (x, y), (x + w, y + h), (255, 0, 0), 2)
                 aspectRatio = h / float(w)
                 solidity = cv2.contourArea(c) / float(w * h)
                 heightRatio = h / float(LpRegion.shape[0])
-                print("dô đây")
                 if 1.5 < aspectRatio < 3.5 and solidity > 0.1 and 0.35 < heightRatio < 3.0: # Chon cac contour dam bao ve ratio w/h
-                #   if h/thresh.shape[0]>=0.5:
+                  if h/LpRegion.shape[0]>=0.5:
                     count = count + 1
                     cv2.rectangle(thresh, (x, y), (x + w, y + h), (255, 0, 0), 1)
                         # print(count)
                     #     # Tach so va predict
                     curr_num = thre_mor[y:y+h,x:x+w]
                     curr_num = cv2.resize(curr_num, dsize=(self.digit_w, self.digit_h))
+                    cv2.imwrite("testCurret.png",curr_num)
                     _, curr_num = cv2.threshold(curr_num, 30, 255, cv2.THRESH_BINARY)
                     curr_num = np.array(curr_num,dtype=np.float32)
                     curr_num = curr_num.reshape(-1, self.digit_w * self.digit_h)
 
-                    #     # Dua vao model SVM
-                    result = self.model_svm.predict(curr_num)[1]
-                    result = int(result[0, 0])
-
-                    if result<=9: # Neu la so thi hien thi luon
-                            result = str(result)
-                            print(result)
-                            self.candidates.append((result,(y,x)))
-
-                    else: #Neu la chu thi chuyen bang ASCII
-                            result = chr(result)
-                            print(result)
-                            self.candidates.append((result,(y,x)))
-
+                    #SVM
+                    result = self.model_svm.predict(curr_num)
+                    
+                    result = result[0]
+                    print(result)
+                    self.candidates.append((result,(y,x)))
+           
                     self.plate_info +=result
-        # loop over the unique components
-        # lặp qua các thành phần duy nhất
-
-        
-        # cv2.imshow("Cac contour tim duoc", thresh)
-        cv2.imwrite("step3.png", thresh)
-
-
-        # connected components analysis
-        #Gắn nhãn các vùng được kết nối của một mảng số nguyên.
+            cv2.imwrite("step3.png", thresh)
+    
+  
         if(self.model == "CNN"): 
             labels = measure.label(thresh, connectivity=2, background=0)  
             for label in np.unique(labels):
@@ -220,8 +190,8 @@ class E2E(object):
                 mask = np.zeros(thresh.shape, dtype="uint8")
                 mask[labels == label] = 255
 
-                mask1 = np.zeros(thresh.shape, dtype="uint8")
-                mask1[labels == label] = 255
+                # mask1 = np.zeros(thresh.shape, dtype="uint8")
+                # mask1[labels == label] = 255
 
                 # find contours from mask
                 #contours: Danh sách các contour có trong bức ảnh nhị phân. 
@@ -239,14 +209,13 @@ class E2E(object):
                     # Do ở bước này các giá trị thu được ngoài kí tự còn có cả nhiễu do đó ta thiết lập các giá trị ngưỡng để loại bỏ nhiễu.
                     #Ở đây ta sử dụng ngưỡng đối với ba đại lượng:
                     #  aspect ratio(tỉ lệ rộng / dài),
-                    #  solidity(tỉ lệ diện tích phần contour bao quanh kí tự và hình chữ nhật bao quanh kí tự)
+                    #  solidity(tỉ lệ diện tích phần contour bao quanh kí tự và hình chữ nhật bao quanh kí tand w < hự)
                     #  height ratio(tỉ lệ chiều dài kí tự / chiều dài biển số xe).
                     aspectRatio = w / float(h)
                     solidity = cv2.contourArea(contour) / float(w * h)
                     heightRatio = h / float(LpRegion.shape[0])
-
-                    if 0.1 < aspectRatio < 1.0 and solidity > 0.1 and 0.35 < heightRatio < 2.0:
-                        
+                    if 0.1 < aspectRatio < 1.0 and solidity > 0.1 and 0.35 < heightRatio < 2.0 :
+                        if h/LpRegion.shape[0]>=0.5:
                             # extract characters
                             cv2.rectangle(thresh, (x, y), (x + w, y + h), (255, 0, 0), 2)
                             candidate = np.array(mask[y:y + h, x:x + w])
@@ -260,47 +229,7 @@ class E2E(object):
                         
                             self.candidates.append((square_candidate, (y, x)))
 
-                            
-                            # curr_num = cv2.resize(curr_num, (28, 28), cv2.INTER_AREA)
-                            # curr_num = curr_num.reshape((28, 28, 1))
-                            # result = self.model_svm.predict(curr_num)[1]
-                            # result = int(result[0, 0])
-
-
-                            # cv2.rectangle(thresh, (x, y), (x + w, y + h), (255, 0, 0), 2)
-                            # curr_num = thre_mor[y:y+h,x:x+w]
-                            # #curr_num = np.array(mask[y:y + h, x:x + w])
-                            # curr_num = cv2.resize(curr_num, dsize=(self.digit_w, self.digit_h))
-                            # # _, curr_num = cv2.threshold(curr_num, 30, 255, cv2.THRESH_BINARY)
-                            # curr_num = np.array(curr_num,dtype=np.float32)
-                            # curr_num = curr_num.reshape(-1, self.digit_w * self.digit_h)
-                            # # Dua vao model SVM
-                            # result = self.model_svm.predict(curr_num)[1]
-                            # result = int(result[0, 0])
-
-                            # if result<=9: # Neu la so thi hien thi luon
-                            #  result = str(result)
-                            # else: #Neu la chu thi chuyen bang ASCII
-                            #  result = chr(result)
-                            #  self.plate_info +=result
-
-
-                        # if(model == "SVM"):
-                        #    # cv2.rectangle(roi, (x, y), (x + w, y + h), (0, 255, 0), 2)
-                        #     curr_num = thre_mor[y:y+h,x:x+w]
-                        #     curr_num = cv2.resize(curr_num, dsize=(self.digit_w, self.digit_h))
-                        #     _, curr_num = cv2.threshold(curr_num, 30, 255, cv2.THRESH_BINARY)
-                        #     curr_num = np.array(curr_num,dtype=np.float32)
-                        #     curr_num = curr_num.reshape(-1, self.digit_w * self.digit_h)
-                        #     # Dua vao model SVM
-                        #     result = self.model_svm.predict(curr_num)[1]
-                        #     result = int(result[0, 0])
-
-                        #     if result<=9: # Neu la so thi hien thi luon
-                        #      result = str(result)
-                        #     else: #Neu la chu thi chuyen bang ASCII
-                        #      result = chr(result)
-                        #      self.plate_info +=result
+                        
             cv2.imwrite("step3.png", thresh)
     
     def recognizeChar(self):
@@ -317,9 +246,11 @@ class E2E(object):
         characters = np.array(characters)
         #Trả về các dự đoán cho một lô mẫu duy nhất.
         result = self.recogChar.predict_on_batch(characters)
+
+        
         result_idx = np.argmax(result, axis=1)
-
-
+  
+    
         self.candidates = []
         for i in range(len(result_idx)):
             if result_idx[i] == 31:    # if is background or noise, ignore it
@@ -345,7 +276,7 @@ class E2E(object):
         if len(second_line) == 0:  # if license plate has 1 line
             license_plate = "".join([str(ele[0]) for ele in first_line])
         else:   # if license plate has 2 lines
-            license_plate = "".join([str(ele[0]) for ele in first_line]) + "-" + "".join([str(ele[0]) for ele in second_line])
+            license_plate = "".join([str(ele[0]) for ele in first_line]) +  "".join([str(ele[0]) for ele in second_line])
 
         return license_plate
 
@@ -353,7 +284,7 @@ class E2E(object):
         print("SVM biền số:" + self.license_plate)
         return self.license_plate
 
-    def sort_contours(cnts):
+def sort_contours(cnts):
 
         reverse = False
         i = 0
@@ -361,11 +292,4 @@ class E2E(object):
         (cnts, boundingBoxes) = zip(*sorted(zip(cnts, boundingBoxes),
                                             key=lambda b: b[1][i], reverse=reverse))
         return cnts
-
-    def fine_tune(self,lp):
-        newString = ""
-        for i in range(len(lp)):
-            if lp[i] in self.char_list:
-                newString += lp[i]
-        return newString
 
